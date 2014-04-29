@@ -60,11 +60,18 @@ namespace EventTimeNormalizer
                         {
 
                         }
-                    } else
+                    }
+                    else
                     {
-                        DateTime dt = DateTime.FromOADate(double.Parse(cell.CellValue.InnerXml));
-
-                        sb2.Append(cell.CellValue.InnerXml);
+                        if ((cell.StyleIndex != null) && (cell.StyleIndex == 2))
+                        {
+                            DateTime dt = DateTime.FromOADate(double.Parse(cell.CellValue.InnerXml));
+                            sb2.Append(dt.ToString());
+                        }
+                        else
+                        {
+                            sb2.Append(cell.CellValue.InnerXml);
+                        }
                     }
 
                 }
