@@ -29,6 +29,58 @@ namespace EventTimeNormalizer
 
             SharedStringTable sharedStringTable = wp.SharedStringTablePart.SharedStringTable;
 
+
+            int iPos = 0;
+            int iValueCell = 2;
+            int iDataCell = 3;
+
+            List<RowDateValue> lRDV = new List<RowDateValue>();
+
+            foreach (Row row in sheetData.AsEnumerable())
+            {
+                if (iPos == 0 && fFirstRowHeader)
+                {
+                    iPos++;
+                    continue;
+                }
+
+                lRDV.Add(new RowDateValue(iPos++));
+
+                Cell cell = row.ElementAt(iValueCell) as Cell;
+                double dVal = double.Parse(cell.CellValue.Text);
+                lRDV.Last().Value = dVal;
+
+                cell = row.ElementAt(iDataCell) as Cell;
+                if (cell.DataType == CellValues.Date)
+                {
+                    string s = cell.CellValue.Text;
+                    DateTime dt = DateTime.Parse(s);
+                    lRDV.Last().Date = dt;
+                }
+                else if (cell.DataType == CellValues.SharedString)
+                {
+                    SharedStringItem ssi = sharedStringTable.ChildElements[int.Parse(cell.CellValue.Text)] as SharedStringItem;
+                    DateTime dt = DateTime.Parse(ssi.Text.Text);
+                    lRDV.Last().Date = dt;
+                }
+
+                else if ((cell.StyleIndex != null) && (cell.StyleIndex == 2))
+                {
+                    DateTime dt = DateTime.FromOADate(double.Parse(cell.CellValue.InnerXml));
+                    lRDV.Last().Date = dt;
+                }
+            }
+
+            // sort them by date
+            lRDV.Sort((RowDateValue r1, RowDateValue r2) =>
+            {
+                int i = r1.Date.CompareTo(r2.Date);
+                if (i != 0)
+                    return i;
+
+                return r1.OriginalPosition.CompareTo(r2.OriginalPosition);
+            });
+
             bool fFirst = true;
             foreach (Row row in sheetData.AsEnumerable())
             {
@@ -58,7 +110,7 @@ namespace EventTimeNormalizer
                         }
                         else
                         {
-
+                            int jj = 0;
                         }
                     }
                     else
@@ -70,7 +122,8 @@ namespace EventTimeNormalizer
                         }
                         else
                         {
-                            sb2.Append(cell.CellValue.InnerXml);
+                            if (cell.CellValue != null)
+                                sb2.Append(cell.CellValue.InnerXml);
                         }
                     }
 
