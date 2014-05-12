@@ -15,5 +15,10 @@ namespace EventTimeNormalizer
         public long OriginalPosition { get; set; }
         public double Value { get; set; }
         public DateTime Date { get; set; }
+
+        public override string ToString()
+        {
+            return this.GetType().Name + "[Date=" + Date + ", Value=" + Value + "]";
+        }
     }
 }

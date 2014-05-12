@@ -20,7 +20,9 @@ namespace EventTimeNormalizer
                 log4net.Config.XmlConfigurator.Configure(s);
             }
             log.DebugFormat("{0:S} v{1:S} started", System.Reflection.Assembly.GetExecutingAssembly().GetName().Name, System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString());
+
             SpreadsheetDocument sd = SpreadsheetDocument.Open(@"D:\GIT\EventTimeNormalizer\EventTimeNormalizer\sample\data.xlsx", false);
+            //SpreadsheetDocument sd = SpreadsheetDocument.Open(@"D:\GIT\EventTimeNormalizer\EventTimeNormalizer\sample\data - Copy.xlsx", false);
 
             WorkbookPart wp = sd.Parts.First(item => item.OpenXmlPart is WorkbookPart).OpenXmlPart as WorkbookPart;
             Sheet sheet = wp.Workbook.Descendants<Sheet>().First();
@@ -91,62 +93,105 @@ namespace EventTimeNormalizer
 
             log.InfoFormat("Min event time is {0:S}, max is {1:S}. Timespan is {2:S}.",
                 dtStart.ToString(), dtEnd.ToString(), ((dtEnd - dtStart).ToString()));
+
+            long lTotalSteps = (int)((dtEnd - dtStart).TotalMilliseconds / 1000); // VARIABLE
+            lTotalSteps *= lDVGInput.Count; // for each group
             #endregion
 
+            //double dLastShownPerc = -10.0D;
+            //double dSteps = 0.0D;
 
             List<DateValueGroup> lDVGOutput = new List<DateValueGroup>();
 
             foreach (DateValueGroup dvgInput in lDVGInput)
             {
-                // Move first value to start
-                dvgInput.Values[0].Date = dtStart;
-
-                DateValueGroup dvgOutput = new DateValueGroup(dvgInput.Keys);
-
-                DateTime dtCurrent = dtStart;
-
-                long lPos = 0;
-
-                double dLastValue = dvgInput.Values[0].Value;
-                DateTime dLastDate = dvgInput.Values[0].Date;
-
-                int iSrcPos = 1;
-
-                while (dtCurrent < dtEnd)
-                {
-                    DateTime dtNext = dtCurrent.AddSeconds(1); // VARIABILE
-                    double dAccumulated = 0;
-
-                    while ((iSrcPos < dvgInput.Values.Count) && (dtCurrent < dtNext))
-                    {
-                        if (dvgInput.Values[iSrcPos].Date < dtNext)
-                        {
-                            double deltaMSPerc = (dvgInput.Values[iSrcPos].Date - dtCurrent).TotalMilliseconds / 1000; // VARIABILE
-                            dAccumulated += dvgInput.Values[iSrcPos-1].Value * deltaMSPerc;
-
-                            dtCurrent = dvgInput.Values[iSrcPos].Date;
-                            iSrcPos++;
-                        }
-                        else
-                        {
-                            double deltaMSPerc = (dtNext - dtCurrent).TotalMilliseconds / 1000; // VARIABILE
-                            dAccumulated += dvgInput.Values[iSrcPos-1].Value * deltaMSPerc;
-
-                            DateValuePair dvp = new DateValuePair(lPos++) { Date = dtNext.Subtract(TimeSpan.FromSeconds(1)) }; // VARIABILE!
-                            dvp.Value = dAccumulated;
-                            dvgOutput.Add(dvp);
-
-                            dAccumulated = 0.0D;
-                            dtCurrent = dtNext;
-                        }
-                    }
-                }
+                DateValueGroup dvgOutput = Normalize(dtStart, dtEnd, 
+                    new TimeSpan(0,0,1),
+                    
+                    dvgInput);
 
                 lDVGOutput.Add(dvgOutput);
             }
+        }
+
+        public static DateValueGroup Normalize(
+            DateTime dtStart, DateTime dtEnd,
+            TimeSpan tsStep,
+            DateValueGroup dvgInput)
+        {
+            //// Move first value to start
+            //dvgInput.Values[0].Date = dtStart;
+
+            // Add last value to end
+            //dvgInput.Add(new DateValuePair(-1) { Value = dvgInput.Values[//dvgInput.Values.Count - 1].Value, Date = dtEnd });
+
+            DateValueGroup dvgOutput = new DateValueGroup(dvgInput.Keys);
+
+            DateTime dtCurrent = dtStart;
+
+            long lPos = 0;
+
+            double dLastValue = dvgInput.Values[0].Value;
+            DateTime dLastDate = dvgInput.Values[0].Date;
+
+            int iSrcPos = 1;
 
 
+            while (dtCurrent < dtEnd)
+            {
+                DateTime dtNext = dtCurrent.AddSeconds(1); // VARIABILE
+                double dAccumulated = 0;
 
+                while ((dtCurrent < dtNext))// && (iSrcPos < dvgInput.Values.Count))
+                {
+                    DateTime dtToAnalyze;
+                    double dPreviousValue;
+
+                    if (iSrcPos < dvgInput.Values.Count)
+                    {
+                        dtToAnalyze = dvgInput.Values[iSrcPos].Date;
+                        dPreviousValue = dvgInput.Values[iSrcPos - 1].Value;
+                    }
+                    else
+                    {
+                        dtToAnalyze = DateTime.MaxValue;
+                        dPreviousValue = dvgInput.Values[dvgInput.Values.Count - 1].Value;
+                    }
+
+                    if (dtToAnalyze < dtNext)
+                    {
+                        double deltaMSPerc = (dtToAnalyze - dtCurrent).TotalMilliseconds / 1000; // VARIABILE
+                        dAccumulated += dPreviousValue * deltaMSPerc;
+
+                        dtCurrent = dtToAnalyze;
+                        iSrcPos++;
+                    }
+                    else
+                    {
+                        double deltaMSPerc = (dtNext - dtCurrent).TotalMilliseconds / 1000; // VARIABILE
+                        dAccumulated += dPreviousValue * deltaMSPerc;
+
+                        DateValuePair dvp = new DateValuePair(lPos++) { Date = dtNext.Subtract(TimeSpan.FromSeconds(1)) }; // VARIABILE!
+                        dvp.Value = dAccumulated;
+                        dvgOutput.Add(dvp);
+
+                        //#region Calculate % completed
+                        //dSteps++;
+                        //double dCurPerc = (dSteps / lTotalSteps) * 100;
+                        //if (dCurPerc - dLastShownPerc > 1.0D)
+                        //{
+                        //    log.InfoFormat("{0:N0}% completed.", dCurPerc);
+                        //    dLastShownPerc = dCurPerc;
+                        //}
+                        //#endregion
+
+                        dAccumulated = 0.0D;
+                        dtCurrent = dtNext;
+                    }
+                }
+            }
+
+            return dvgOutput;
         }
 
         public static object ExtractValueFromCell(SharedStringTable sharedStringTable, Cell cell)
