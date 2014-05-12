@@ -6,16 +6,14 @@ using System.Threading.Tasks;
 
 namespace EventTimeNormalizer
 {
-    public class RowDateValue
+    public class DateValuePair
     {
-        public RowDateValue(int OriginalPosition)
+        public DateValuePair(long OriginalPosition)
         {
             this.OriginalPosition = OriginalPosition;
         }
-        public int OriginalPosition { get; set; }
+        public long OriginalPosition { get; set; }
         public double Value { get; set; }
         public DateTime Date { get; set; }
-
-        public string[] Items { get; set; } 
     }
 }
