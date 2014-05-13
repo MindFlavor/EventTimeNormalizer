@@ -379,23 +379,6 @@ namespace EventTimeNormalizer
             DifferentialFormats differentialFormats1 = new DifferentialFormats() { Count = (UInt32Value)0U };
             TableStyles tableStyles1 = new TableStyles() { Count = (UInt32Value)0U, DefaultTableStyle = "TableStyleMedium2", DefaultPivotStyle = "PivotStyleLight16" };
 
-            //StylesheetExtensionList stylesheetExtensionList1 = new StylesheetExtensionList();
-
-            //StylesheetExtension stylesheetExtension1 = new StylesheetExtension() { Uri = "{EB79DEF2-80B8-43e5-95BD-54CBDDF9020C}" };
-            //stylesheetExtension1.AddNamespaceDeclaration("x14", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main");
-            //DocumentFormat.OpenXml.Office2010.Excel.SlicerStyles slicerStyles1 = new DocumentFormat.OpenXml.Office2010.Excel.SlicerStyles() { DefaultSlicerStyle = "SlicerStyleLight1" };
-
-            //stylesheetExtension1.Append(slicerStyles1);
-
-            //StylesheetExtension stylesheetExtension2 = new StylesheetExtension() { Uri = "{9260A510-F301-46a8-8635-F512D64BE5F5}" };
-            //stylesheetExtension2.AddNamespaceDeclaration("x15", "http://schemas.microsoft.com/office/spreadsheetml/2010/11/main");
-            //DocumentFormat.OpenXml.Office2013.Excel.TimelineStyles timelineStyles1 = new DocumentFormat.OpenXml.Office2013.Excel.TimelineStyles() { DefaultTimelineStyle = "TimeSlicerStyleLight1" };
-
-            //stylesheetExtension2.Append(timelineStyles1);
-
-            //stylesheetExtensionList1.Append(stylesheetExtension1);
-            //stylesheetExtensionList1.Append(stylesheetExtension2);
-
              wbsp.Stylesheet.Append(numberingFormats1);
              wbsp.Stylesheet.Append(fonts1);
              wbsp.Stylesheet.Append(fills1);
@@ -405,11 +388,11 @@ namespace EventTimeNormalizer
              wbsp.Stylesheet.Append(cellStyles1);
              wbsp.Stylesheet.Append(differentialFormats1);
              wbsp.Stylesheet.Append(tableStyles1);
-             //wbsp.Stylesheet.Append(stylesheetExtensionList1);
 
             wbsp.Stylesheet.Save();
             #endregion
 
+            #region Columns definition
             Columns columns = new Columns();
 
             for (int i = 1; i <= lDVGOutput.Count + 1; i++)
@@ -423,13 +406,9 @@ namespace EventTimeNormalizer
             }
 
             workSheet.Append(columns);
-
+            #endregion
 
             SheetData sheetData = new SheetData();
-            //{
-            //    sheetData.Append(CreateContent(index, dr, columnSize.Count()));
-            //    index++;
-            //}
 
             #region Add header
             {
@@ -461,10 +440,7 @@ namespace EventTimeNormalizer
                 {
                     Row objRow = new Row();
 
-                    //DateTime.FromOADate(double.Parse(cell.CellValue.InnerXml));
-
                     objRow.Append(new Cell() { 
-                        //DataType = CellValues.Date, 
                         StyleIndex = 1, CellValue = new CellValue(lDVGOutput[0].Values[i].Date.ToOADate().ToString()) });
 
                     foreach (DateValueGroup dvg in lDVGOutput)
@@ -484,7 +460,7 @@ namespace EventTimeNormalizer
 
             Sheets sheets = new Sheets();
             Sheet sheet = new Sheet();
-            sheet.Name = "nameee";
+            sheet.Name = "NormalizedData";
             sheet.SheetId = 1;
             sheet.Id = wbp.GetIdOfPart(wsp);
 
