@@ -58,6 +58,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="sample\data - Copy %282%29.xlsx" />
     <None Include="sample\data - Copy.xlsx" />
     <None Include="sample\data.xlsx" />
   </ItemGroup>

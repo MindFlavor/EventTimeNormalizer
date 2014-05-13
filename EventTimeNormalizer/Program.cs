@@ -109,7 +109,14 @@ namespace EventTimeNormalizer
                 if (oDate is DateTime)
                     dvp.Date = (DateTime)oDate;
                 else
-                    dvp.Date = DateTime.Parse(oDate.ToString());
+                {
+                    DateTime dtTemp;
+                    if (!DateTime.TryParse(oDate.ToString(), out dtTemp))
+                        dtTemp= DateTime.FromOADate(double.Parse(oDate.ToString()));
+
+                    dvp.Date = dtTemp;
+                    //dvp.Date = DateTime.Parse(oDate.ToString());
+                }
 
                 object oValue = ExtractValueFromCell(sharedStringTable, row.ElementAt(par.ValueColumn) as Cell);
                 if (oValue is double)
@@ -161,7 +168,7 @@ namespace EventTimeNormalizer
             }
             #endregion
 
-            GenerateOutput(par);
+            GenerateOutput(par, lDVGOutput);
         }
 
         public static DateValueGroup Normalize(
@@ -266,13 +273,14 @@ namespace EventTimeNormalizer
             }
             else
             {
+                Console.WriteLine(cell.CellReference + " - StyleIndex == " + cell.StyleIndex);
                 return cell.InnerText;
             }
 
             return null;
         }
 
-        public static void GenerateOutput(Parameters par)
+        public static void GenerateOutput(Parameters par, List<DateValueGroup> lDVGOutput)
         {
             SpreadsheetDocument objExcelDoc = SpreadsheetDocument.Create(par.OutputExcelFile, DocumentFormat.OpenXml.SpreadsheetDocumentType.Workbook);
             WorkbookPart wbp = objExcelDoc.AddWorkbookPart();
@@ -285,8 +293,126 @@ namespace EventTimeNormalizer
 
             Worksheet workSheet = new Worksheet();
 
+            #region Stylesheet
+            WorkbookStylesPart wbsp = wbp.AddNewPart<WorkbookStylesPart>();
+            wbsp.Stylesheet = new Stylesheet() { MCAttributes = new MarkupCompatibilityAttributes() { Ignorable = "x14ac" } };
+
+            wbsp.Stylesheet.AddNamespaceDeclaration("mc", "http://schemas.openxmlformats.org/markup-compatibility/2006");
+            wbsp.Stylesheet.AddNamespaceDeclaration("x14ac", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac");
+
+            NumberingFormats numberingFormats1 = new NumberingFormats() { Count = (UInt32Value)2U };
+            NumberingFormat numberingFormat1 = new NumberingFormat() { NumberFormatId = (UInt32Value)164U, FormatCode = "[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy" };
+            NumberingFormat numberingFormat2 = new NumberingFormat() { NumberFormatId = (UInt32Value)165U, FormatCode = "[$-F400]h:mm:ss\\ AM/PM" };
+
+            numberingFormats1.Append(numberingFormat1);
+            numberingFormats1.Append(numberingFormat2);
+
+            Fonts fonts1 = new Fonts() { Count = (UInt32Value)1U, KnownFonts = true };
+
+            Font font1 = new Font();
+            FontSize fontSize1 = new FontSize() { Val = 11D };
+            Color color1 = new Color() { Theme = (UInt32Value)1U };
+            FontName fontName1 = new FontName() { Val = "Calibri" };
+            FontFamilyNumbering fontFamilyNumbering1 = new FontFamilyNumbering() { Val = 2 };
+            FontScheme fontScheme1 = new FontScheme() { Val = FontSchemeValues.Minor };
+
+            font1.Append(fontSize1);
+            font1.Append(color1);
+            font1.Append(fontName1);
+            font1.Append(fontFamilyNumbering1);
+            font1.Append(fontScheme1);
+
+            fonts1.Append(font1);
+
+            Fills fills1 = new Fills() { Count = (UInt32Value)2U };
+
+            Fill fill1 = new Fill();
+            PatternFill patternFill1 = new PatternFill() { PatternType = PatternValues.None };
+
+            fill1.Append(patternFill1);
+
+            Fill fill2 = new Fill();
+            PatternFill patternFill2 = new PatternFill() { PatternType = PatternValues.Gray125 };
+
+            fill2.Append(patternFill2);
+
+            fills1.Append(fill1);
+            fills1.Append(fill2);
+
+            Borders borders1 = new Borders() { Count = (UInt32Value)1U };
+
+            Border border1 = new Border();
+            LeftBorder leftBorder1 = new LeftBorder();
+            RightBorder rightBorder1 = new RightBorder();
+            TopBorder topBorder1 = new TopBorder();
+            BottomBorder bottomBorder1 = new BottomBorder();
+            DiagonalBorder diagonalBorder1 = new DiagonalBorder();
+
+            border1.Append(leftBorder1);
+            border1.Append(rightBorder1);
+            border1.Append(topBorder1);
+            border1.Append(bottomBorder1);
+            border1.Append(diagonalBorder1);
+
+            borders1.Append(border1);
+
+            CellStyleFormats cellStyleFormats1 = new CellStyleFormats() { Count = (UInt32Value)1U };
+            CellFormat cellFormat1 = new CellFormat() { NumberFormatId = (UInt32Value)0U, FontId = (UInt32Value)0U, FillId = (UInt32Value)0U, BorderId = (UInt32Value)0U };
+
+            cellStyleFormats1.Append(cellFormat1);
+
+            CellFormats cellFormats1 = new CellFormats() { Count = (UInt32Value)4U };
+            CellFormat cellFormat2 = new CellFormat() { NumberFormatId = (UInt32Value)0U, FontId = (UInt32Value)0U, FillId = (UInt32Value)0U, BorderId = (UInt32Value)0U, FormatId = (UInt32Value)0U };
+            CellFormat cellFormat3 = new CellFormat() { NumberFormatId = (UInt32Value)14U, FontId = (UInt32Value)0U, FillId = (UInt32Value)0U, BorderId = (UInt32Value)0U, FormatId = (UInt32Value)0U, ApplyNumberFormat = true };
+            CellFormat cellFormat4 = new CellFormat() { NumberFormatId = (UInt32Value)164U, FontId = (UInt32Value)0U, FillId = (UInt32Value)0U, BorderId = (UInt32Value)0U, FormatId = (UInt32Value)0U, ApplyNumberFormat = true };
+            CellFormat cellFormat5 = new CellFormat() { NumberFormatId = (UInt32Value)165U, FontId = (UInt32Value)0U, FillId = (UInt32Value)0U, BorderId = (UInt32Value)0U, FormatId = (UInt32Value)0U, ApplyNumberFormat = true };
+
+            cellFormats1.Append(cellFormat2);
+            cellFormats1.Append(cellFormat3);
+            cellFormats1.Append(cellFormat4);
+            cellFormats1.Append(cellFormat5);
+
+            CellStyles cellStyles1 = new CellStyles() { Count = (UInt32Value)1U };
+            CellStyle cellStyle1 = new CellStyle() { Name = "Normal", FormatId = (UInt32Value)0U, BuiltinId = (UInt32Value)0U };
+
+            cellStyles1.Append(cellStyle1);
+            DifferentialFormats differentialFormats1 = new DifferentialFormats() { Count = (UInt32Value)0U };
+            TableStyles tableStyles1 = new TableStyles() { Count = (UInt32Value)0U, DefaultTableStyle = "TableStyleMedium2", DefaultPivotStyle = "PivotStyleLight16" };
+
+            //StylesheetExtensionList stylesheetExtensionList1 = new StylesheetExtensionList();
+
+            //StylesheetExtension stylesheetExtension1 = new StylesheetExtension() { Uri = "{EB79DEF2-80B8-43e5-95BD-54CBDDF9020C}" };
+            //stylesheetExtension1.AddNamespaceDeclaration("x14", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main");
+            //DocumentFormat.OpenXml.Office2010.Excel.SlicerStyles slicerStyles1 = new DocumentFormat.OpenXml.Office2010.Excel.SlicerStyles() { DefaultSlicerStyle = "SlicerStyleLight1" };
+
+            //stylesheetExtension1.Append(slicerStyles1);
+
+            //StylesheetExtension stylesheetExtension2 = new StylesheetExtension() { Uri = "{9260A510-F301-46a8-8635-F512D64BE5F5}" };
+            //stylesheetExtension2.AddNamespaceDeclaration("x15", "http://schemas.microsoft.com/office/spreadsheetml/2010/11/main");
+            //DocumentFormat.OpenXml.Office2013.Excel.TimelineStyles timelineStyles1 = new DocumentFormat.OpenXml.Office2013.Excel.TimelineStyles() { DefaultTimelineStyle = "TimeSlicerStyleLight1" };
+
+            //stylesheetExtension2.Append(timelineStyles1);
+
+            //stylesheetExtensionList1.Append(stylesheetExtension1);
+            //stylesheetExtensionList1.Append(stylesheetExtension2);
+
+             wbsp.Stylesheet.Append(numberingFormats1);
+             wbsp.Stylesheet.Append(fonts1);
+             wbsp.Stylesheet.Append(fills1);
+             wbsp.Stylesheet.Append(borders1);
+             wbsp.Stylesheet.Append(cellStyleFormats1);
+             wbsp.Stylesheet.Append(cellFormats1);
+             wbsp.Stylesheet.Append(cellStyles1);
+             wbsp.Stylesheet.Append(differentialFormats1);
+             wbsp.Stylesheet.Append(tableStyles1);
+             //wbsp.Stylesheet.Append(stylesheetExtensionList1);
+
+            wbsp.Stylesheet.Save();
+            #endregion
+
             Columns columns = new Columns();
-            for (int i = 1; i <= 4; i++)
+
+            for (int i = 1; i <= lDVGOutput.Count + 1; i++)
             {
                 Column column = new Column();
                 column.Min = Convert.ToUInt32(i);
@@ -304,6 +430,53 @@ namespace EventTimeNormalizer
             //    sheetData.Append(CreateContent(index, dr, columnSize.Count()));
             //    index++;
             //}
+
+            #region Add header
+            {
+                Row objRow = new Row();
+
+                objRow.Append(new Cell() { DataType = CellValues.String, CellValue = new CellValue("DateTime") });
+
+                foreach (DateValueGroup dvg in lDVGOutput)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < dvg.Keys.Length; i++)
+                    {
+                        sb.Append(dvg.Keys[i].ToString());
+                        if (i + 1 < dvg.Keys.Length)
+                            sb.Append("-");
+                    }
+
+                    Cell objCell = new Cell() { DataType = CellValues.String, CellValue = new CellValue(sb.ToString()) };
+                    objRow.Append(objCell);
+                }
+
+                sheetData.Append(objRow);
+            }
+            #endregion
+
+            #region Add data
+            {
+                for (int i = 0; i < lDVGOutput[0].Values.Count; i++)
+                {
+                    Row objRow = new Row();
+
+                    //DateTime.FromOADate(double.Parse(cell.CellValue.InnerXml));
+
+                    objRow.Append(new Cell() { 
+                        //DataType = CellValues.Date, 
+                        StyleIndex = 1, CellValue = new CellValue(lDVGOutput[0].Values[i].Date.ToOADate().ToString()) });
+
+                    foreach (DateValueGroup dvg in lDVGOutput)
+                    {
+                        Cell objCell = new Cell() { DataType=CellValues.Number, CellValue = new CellValue(dvg.Values[i].Value.ToString()) };
+                        objRow.Append(objCell);
+                    }
+
+                    sheetData.Append(objRow);
+                }
+            }
+            #endregion
 
             workSheet.Append(sheetData);
 
@@ -332,327 +505,5 @@ namespace EventTimeNormalizer
                 stream.Write(buffer, 0, buffer.Length);
             }
         }
-
-        private static Stylesheet CreateStylesheet()
-        {
-
-            Stylesheet ss = new Stylesheet();
-
-            Fonts fts = new Fonts();
-
-            DocumentFormat.OpenXml.Spreadsheet.Font ft = new DocumentFormat.OpenXml.Spreadsheet.Font();
-
-            FontName ftn = new FontName();
-
-            ftn.Val = StringValue.FromString("Calibri");
-
-            DocumentFormat.OpenXml.Spreadsheet.FontSize ftsz = new DocumentFormat.OpenXml.Spreadsheet.FontSize();
-
-            ftsz.Val = DoubleValue.FromDouble(11);
-
-            ft.FontName = ftn;
-
-            ft.FontSize = ftsz;
-
-            fts.Append(ft);
-
-            ft = new DocumentFormat.OpenXml.Spreadsheet.Font();
-
-            ftn = new FontName();
-
-            ftn.Val = StringValue.FromString("Palatino Linotype");
-
-            ftsz = new DocumentFormat.OpenXml.Spreadsheet.FontSize();
-
-            ftsz.Val = DoubleValue.FromDouble(18);
-
-            ft.FontName = ftn;
-
-            ft.FontSize = ftsz;
-
-            fts.Append(ft);
-
-            fts.Count = UInt32Value.FromUInt32((uint)fts.ChildElements.Count);
-
-            Fills fills = new Fills();
-
-            Fill fill;
-
-            PatternFill patternFill;
-
-            fill = new Fill();
-
-            patternFill = new PatternFill();
-
-            patternFill.PatternType = PatternValues.None;
-
-            fill.PatternFill = patternFill;
-
-            fills.Append(fill);
-
-            fill = new Fill();
-
-            patternFill = new PatternFill();
-
-            patternFill.PatternType = PatternValues.Gray125;
-
-            fill.PatternFill = patternFill;
-
-            fills.Append(fill);
-
-            fill = new Fill();
-
-            patternFill = new PatternFill();
-
-            patternFill.PatternType = PatternValues.Solid;
-
-            patternFill.ForegroundColor = new ForegroundColor();
-
-            patternFill.ForegroundColor.Rgb = HexBinaryValue.FromString("CDCDCD");
-
-            patternFill.BackgroundColor = new BackgroundColor();
-
-            patternFill.BackgroundColor.Rgb = patternFill.ForegroundColor.Rgb;
-
-            fill.PatternFill = patternFill;
-
-            fills.Append(fill);
-
-            fills.Count = UInt32Value.FromUInt32((uint)fills.ChildElements.Count);
-
-            Borders borders = new Borders();
-
-            Border border = new Border();
-
-            border.LeftBorder = new LeftBorder();
-
-            border.RightBorder = new RightBorder();
-
-            border.TopBorder = new TopBorder();
-
-            border.BottomBorder = new BottomBorder();
-
-            border.DiagonalBorder = new DiagonalBorder();
-
-            borders.Append(border);
-
-            border = new Border();
-
-            border.LeftBorder = new LeftBorder();
-
-            border.LeftBorder.Style = BorderStyleValues.Thin;
-
-            border.RightBorder = new RightBorder();
-
-            border.RightBorder.Style = BorderStyleValues.Thin;
-
-            border.TopBorder = new TopBorder();
-
-            border.TopBorder.Style = BorderStyleValues.Thin;
-
-            border.BottomBorder = new BottomBorder();
-
-            border.BottomBorder.Style = BorderStyleValues.Thin;
-
-            border.DiagonalBorder = new DiagonalBorder();
-
-            borders.Append(border);
-
-            borders.Count = UInt32Value.FromUInt32((uint)borders.ChildElements.Count);
-
-            CellStyleFormats csfs = new CellStyleFormats();
-
-            CellFormat cf = new CellFormat();
-
-            cf.NumberFormatId = 0;
-
-            cf.FontId = 0;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 0;
-
-            csfs.Append(cf);
-
-            csfs.Count = UInt32Value.FromUInt32((uint)csfs.ChildElements.Count);
-
-            uint iExcelIndex = 164;
-
-            NumberingFormats nfs = new NumberingFormats();
-
-            CellFormats cfs = new CellFormats();
-
-            NumberingFormat nfForcedText = new NumberingFormat();
-
-            nfForcedText.NumberFormatId = UInt32Value.FromUInt32(iExcelIndex++);
-
-            nfForcedText.FormatCode = StringValue.FromString("@");
-
-            nfs.Append(nfForcedText);
-
-            cf = new CellFormat();
-
-            cf.FontId = 0;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 0;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.FontId = 0;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 1;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.FontId = 0;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 0;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.NumberFormatId = nfForcedText.NumberFormatId;
-
-            cf.FontId = 0;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 0;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.NumberFormatId = nfForcedText.NumberFormatId;
-
-            cf.FontId = 1;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 0;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.FontId = 0;
-
-            cf.FillId = 0;
-
-            cf.BorderId = 1;
-
-            cf.FormatId = 0;
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.FontId = 0;
-
-            cf.FillId = 2;
-
-            cf.BorderId = 1;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            cf = new CellFormat();
-
-            cf.NumberFormatId = nfForcedText.NumberFormatId;
-
-            cf.FontId = 0;
-
-            cf.FillId = 2;
-
-            cf.BorderId = 1;
-
-            cf.FormatId = 0;
-
-            cf.ApplyNumberFormat = BooleanValue.FromBoolean(true);
-
-            cfs.Append(cf);
-
-            ss.Append(nfs);
-
-            ss.Append(fts);
-
-            ss.Append(fills);
-
-            ss.Append(borders);
-
-            ss.Append(csfs);
-
-            ss.Append(cfs);
-
-            CellStyles css = new CellStyles();
-
-            CellStyle cs = new CellStyle();
-
-            cs.Name = StringValue.FromString("Normal");
-
-            cs.FormatId = 0;
-
-            cs.BuiltinId = 0;
-
-            css.Append(cs);
-
-            css.Count = UInt32Value.FromUInt32((uint)css.ChildElements.Count);
-
-            ss.Append(css);
-
-            DifferentialFormats dfs = new DifferentialFormats();
-
-            dfs.Count = 0;
-
-            ss.Append(dfs);
-
-            TableStyles tss = new TableStyles();
-
-            tss.Count = 0;
-
-            tss.DefaultTableStyle = StringValue.FromString("TableStyleMedium9");
-
-            tss.DefaultPivotStyle = StringValue.FromString("PivotStyleLight16");
-
-            ss.Append(tss);
-
-            return ss;
-
-        }
-
     }
 }
