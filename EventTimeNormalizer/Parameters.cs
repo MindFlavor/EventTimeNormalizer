@@ -28,5 +28,8 @@ namespace EventTimeNormalizer
 
         [CommandLine.Option('k', "Comma separated numbers composing the primary key (ie 1,2,3 for a three column composite key)", DefaultValue = "1", Required = true)]
         public string KeyCellsCSV { get; set; }
+
+        [CommandLine.Option('t', "Step in seconds. From 1 to infinite. I.e., if you want to normalize by minute specify 60. Default is 1 second (minimum).", DefaultValue = 1, Required = false)]
+        public int StepInSeconds { get; set; }
     }
 }

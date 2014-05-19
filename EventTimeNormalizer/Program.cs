@@ -180,13 +180,13 @@ namespace EventTimeNormalizer
             log.InfoFormat("Min event time is {0:S}, max is {1:S}. Timespan is {2:S}.",
                 dtStart.ToString(), dtEnd.ToString(), ((dtEnd - dtStart).ToString()));
 
-            TimeSpan tsStep = new TimeSpan(0, 0, 1);
+            TimeSpan tsStep = new TimeSpan(0, 0, par.StepInSeconds);
 
             long lTotalSteps = (int)((dtEnd - dtStart).TotalMilliseconds / tsStep.TotalMilliseconds);
             log.InfoFormat("Normalization will create {0:N0} steps.", lTotalSteps);
             if (lTotalSteps > 1048576) // Excel limit
             {
-                log.ErrorFormat("{0:N0} is above excel limit ({1:N0}). Aborting", lTotalSteps, 1048576);
+                log.ErrorFormat("{0:N0} is above excel limit ({1:N0}). Try to shorten the timeframe or to increase the step in seconds. Aborting", lTotalSteps, 1048576);
                 return;
             }
             //lTotalSteps *= lDVGInput.Count; // for each group
@@ -208,7 +208,7 @@ namespace EventTimeNormalizer
 
             for (int i = 0; i < lDVGInput.Count; i++)
             {
-                Normalizer norm = new Normalizer(new TimeSpan(0, 0, 1));
+                Normalizer norm = new Normalizer(tsStep);
                 norm.OnePercentStep += norm_OnePercentStep;
 
                 DateValueGroup dvg = lDVGInput[i];
