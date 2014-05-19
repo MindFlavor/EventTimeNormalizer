@@ -49,6 +49,7 @@
     <Compile Include="DateValuePair.cs" />
     <Compile Include="Normalizer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StreamNormalizer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="itpcfsql.snk" />

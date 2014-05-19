@@ -165,6 +165,16 @@ namespace EventTimeNormalizer
             Parallel.ForEach(lDVGInput, dvg => { dvg.SortDateValues(); });
             log.Info("Sorting groups completed");
 
+
+            #region Test
+            StreamNormalizer sn = new StreamNormalizer(new TimeSpan(0, 0, 1));
+            sn.Start(lDVGInput[0][0].Date);
+            for(int i=0;i<lDVGInput[0].Values.Count; i++)
+            {
+                var ret = sn.Push(lDVGInput[0][i]);
+            }
+            #endregion
+
             #region Find starting time and end time
             DateTime dtStart = DateTime.MaxValue;
             DateTime dtEnd = DateTime.MinValue;
