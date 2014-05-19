@@ -168,8 +168,8 @@ namespace EventTimeNormalizer
 
             #region Test
             StreamNormalizer sn = new StreamNormalizer(new TimeSpan(0, 0, 1));
-            sn.Start(lDVGInput[0][0].Date);
-            for(int i=0;i<lDVGInput[0].Values.Count; i++)
+            sn.Start(lDVGInput[0][0]);
+            for(int i=1;i<lDVGInput[0].Values.Count; i++)
             {
                 var ret = sn.Push(lDVGInput[0][i]);
             }

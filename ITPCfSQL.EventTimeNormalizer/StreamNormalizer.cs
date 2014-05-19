@@ -13,10 +13,11 @@ namespace ITPCfSQL.EventTimeNormalizer
         #region Members
         public TimeSpan Step { get; set; }
 
-        public DateTime StartDateTime { get; set; }
-        public DateTime Current { get; protected set; }
+        public DateValuePair Current { get; protected set; }
+        public DateTime CurrentStep { get; protected set; }
 
         protected double AccumulatedValue { get; set; }
+        protected DateTime CurrentTime { get; set; }
         protected DateValuePair Last { get; set; }
         #endregion
 
@@ -33,31 +34,36 @@ namespace ITPCfSQL.EventTimeNormalizer
         }
         #endregion
 
-        public void Start(DateTime dtStart)
+        public void Start(DateValuePair Start)
         {
-            this.StartDateTime = dtStart;
-            Current = dtStart;
+            this.Current = Start;
+            CurrentStep = Start.Date;
             AccumulatedValue = 0.0D;
-            Last = new DateValuePair(-1) { Date = dtStart, Value = 0.0D };
+            CurrentTime = Start.Date;
         }
 
         public List<DateValuePair> Push(DateValuePair dvp)
         {
-            DateTime dtNext = Current.Add(Step);
             List<DateValuePair> lDVPs = new List<DateValuePair>();
+            DateTime NextStep = CurrentStep.Add(Step);
 
-            while (dvp.Date >= dtNext)
+            while (dvp.Date >= NextStep)
             {
-                double dUsedMS = Math.Min((dtNext - dvp.Date).TotalMilliseconds, 1000);
-                AccumulatedValue += (dUsedMS * dvp.Value) / 1000.0D;
-                lDVPs.Add(new DateValuePair(-1) { Date = Current, Value = AccumulatedValue });
+                double dUsedMS = Math.Min((NextStep - CurrentTime).TotalMilliseconds, 1000);
+                AccumulatedValue += (dUsedMS * Current.Value) / 1000.0D;
+                lDVPs.Add(new DateValuePair(-1) { Date = CurrentStep, Value = AccumulatedValue });
                 AccumulatedValue = 0;
 
-                dtNext = dtNext.AddMilliseconds(dUsedMS);
+                CurrentStep = NextStep;
+                CurrentTime = NextStep;
+                NextStep = NextStep.Add(Step);
             }
 
-            AccumulatedValue += ((dvp.Date-Current).TotalMilliseconds * dvp.Value) / 1000.0D;
-            Last = dvp;
+            double dRemainining = Math.Min((dvp.Date - CurrentTime).TotalMilliseconds, 1000);
+            AccumulatedValue += (dRemainining * Current.Value) / 1000.0D;
+            CurrentTime = dvp.Date;
+
+            Current = dvp;
 
             return lDVPs;
         }
