@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.30110.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventTimeNormalizer", "EventTimeNormalizer\EventTimeNormalizer.csproj", "{CA783818-669C-479F-9CAE-F5EA195C65E7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITPCfSQL.EventTimeNormalizer", "ITPCfSQL.EventTimeNormalizer\ITPCfSQL.EventTimeNormalizer.csproj", "{EA89B41C-183F-40E7-A1B8-694F2CC9DE71}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{CA783818-669C-479F-9CAE-F5EA195C65E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CA783818-669C-479F-9CAE-F5EA195C65E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CA783818-669C-479F-9CAE-F5EA195C65E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA89B41C-183F-40E7-A1B8-694F2CC9DE71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA89B41C-183F-40E7-A1B8-694F2CC9DE71}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA89B41C-183F-40E7-A1B8-694F2CC9DE71}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA89B41C-183F-40E7-A1B8-694F2CC9DE71}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

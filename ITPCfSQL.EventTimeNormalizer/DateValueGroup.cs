@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EventTimeNormalizer
+namespace ITPCfSQL.EventTimeNormalizer
 {
-    class DateValueGroup
+    public class DateValueGroup
     {
         public DateValueGroup(params object[] Keys)
         {

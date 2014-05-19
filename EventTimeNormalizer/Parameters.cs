@@ -20,7 +20,7 @@ namespace EventTimeNormalizer
         [CommandLine.Option('n', "Value cell column", DefaultValue = 2, Required = true)]
         public int ValueColumn { get; set; }
 
-        [CommandLine.Option('d', "Date time cell column", DefaultValue=0, Required = true)]
+        [CommandLine.Option('d', "Date time cell column", DefaultValue = 0, Required = true)]
         public int DataColumn { get; set; }
 
         [CommandLine.Option('v', "Verbose", DefaultValue = false, Required = false)]
