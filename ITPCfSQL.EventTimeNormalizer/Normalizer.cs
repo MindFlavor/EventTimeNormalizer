@@ -8,10 +8,26 @@ namespace ITPCfSQL.EventTimeNormalizer
 {
     public class Normalizer
     {
-        public static DateValueGroup Normalize(
-            DateTime dtStart, DateTime dtEnd,
-            TimeSpan tsStep,
-            DateValueGroup dvgInput)
+        public delegate void OnePercentStepEventHandler(object sender);
+
+        #region Members
+        public TimeSpan Step { get; set; }
+        #endregion
+
+        #region Events
+        public event System.ComponentModel.ProgressChangedEventHandler ProgressChanged;
+        public event OnePercentStepEventHandler OnePercentStep;
+        #endregion
+
+        #region Constructors
+        public Normalizer(
+            TimeSpan tsStep)
+        {
+            this.Step = tsStep;
+        }
+        #endregion
+
+        public DateValueGroup Normalize(DateTime dtStart, DateTime dtEnd, DateValueGroup dvgInput)
         {
             DateValueGroup dvgOutput = new DateValueGroup(dvgInput.Keys);
 
@@ -22,12 +38,15 @@ namespace ITPCfSQL.EventTimeNormalizer
             double dLastValue = dvgInput.Values[0].Value;
             DateTime dLastDate = dvgInput.Values[0].Date;
 
-            int iSrcPos = 1;
+            double dTotalSteps = ((dtEnd - dtStart).TotalMilliseconds) / Step.TotalMilliseconds;
+            double dLastShownPerc = double.MinValue;
+            double dSteps = 0.0D;
 
+            int iSrcPos = 1;
 
             while (dtCurrent < dtEnd)
             {
-                DateTime dtNext = dtCurrent.Add(tsStep);
+                DateTime dtNext = dtCurrent.Add(Step);
                 double dAccumulated = 0;
 
                 while ((dtCurrent < dtNext))
@@ -48,7 +67,7 @@ namespace ITPCfSQL.EventTimeNormalizer
 
                     if (dtToAnalyze < dtNext)
                     {
-                        double deltaMSPerc = (dtToAnalyze - dtCurrent).TotalMilliseconds / tsStep.TotalMilliseconds;
+                        double deltaMSPerc = (dtToAnalyze - dtCurrent).TotalMilliseconds / Step.TotalMilliseconds;
                         dAccumulated += dPreviousValue * deltaMSPerc;
 
                         dtCurrent = dtToAnalyze;
@@ -56,22 +75,24 @@ namespace ITPCfSQL.EventTimeNormalizer
                     }
                     else
                     {
-                        double deltaMSPerc = (dtNext - dtCurrent).TotalMilliseconds / tsStep.TotalMilliseconds;
+                        double deltaMSPerc = (dtNext - dtCurrent).TotalMilliseconds / Step.TotalMilliseconds;
                         dAccumulated += dPreviousValue * deltaMSPerc;
 
-                        DateValuePair dvp = new DateValuePair(lPos++) { Date = dtNext.Subtract(tsStep) }; // VARIABILE!
+                        DateValuePair dvp = new DateValuePair(lPos++) { Date = dtNext.Subtract(Step) };
                         dvp.Value = dAccumulated;
                         dvgOutput.Add(dvp);
 
-                        //#region Calculate % completed
-                        //dSteps++;
-                        //double dCurPerc = (dSteps / lTotalSteps) * 100;
-                        //if (dCurPerc - dLastShownPerc > 1.0D)
-                        //{
-                        //    log.InfoFormat("{0:N0}% completed.", dCurPerc);
-                        //    dLastShownPerc = dCurPerc;
-                        //}
-                        //#endregion
+                        #region Calculate % completed
+                        dSteps++;
+                        double dCurPerc = (dSteps / dTotalSteps) * 100;
+                        if (dCurPerc - dLastShownPerc > 1.0D)
+                        {
+                            OnProgress(new System.ComponentModel.ProgressChangedEventArgs((int)dCurPerc, null));
+                            OnOnePercentStep();
+
+                            dLastShownPerc = dCurPerc;
+                        }
+                        #endregion
 
                         dAccumulated = 0.0D;
                         dtCurrent = dtNext;
@@ -81,5 +102,19 @@ namespace ITPCfSQL.EventTimeNormalizer
 
             return dvgOutput;
         }
+
+        #region Event handlers
+        public void OnProgress(System.ComponentModel.ProgressChangedEventArgs pcea)
+        {
+            if (ProgressChanged != null)
+                ProgressChanged(this, pcea);
+        }
+
+        public void OnOnePercentStep()
+        {
+            if (OnePercentStep != null)
+                OnePercentStep(this);
+        }
+        #endregion
     }
 }

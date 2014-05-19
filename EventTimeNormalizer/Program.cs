@@ -14,6 +14,9 @@ namespace EventTimeNormalizer
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(typeof(Program));
 
+        private static long lTotalToShow;
+        private static long lTotalShown;
+
         static void Main(string[] args)
         {
             using (System.IO.Stream s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("EventTimeNormalizer.log4net configuration.xml"))
@@ -113,7 +116,7 @@ namespace EventTimeNormalizer
                 {
                     DateTime dtTemp;
                     if (!DateTime.TryParse(oDate.ToString(), out dtTemp))
-                        dtTemp= DateTime.FromOADate(double.Parse(oDate.ToString()));
+                        dtTemp = DateTime.FromOADate(double.Parse(oDate.ToString()));
 
                     dvp.Date = dtTemp;
                     //dvp.Date = DateTime.Parse(oDate.ToString());
@@ -155,21 +158,41 @@ namespace EventTimeNormalizer
             //double dLastShownPerc = -10.0D;
             //double dSteps = 0.0D;
 
+            log.Info("Starting normalization");
             #region Normalization
+
             List<DateValueGroup> lDVGOutput = new List<DateValueGroup>();
 
-            foreach (DateValueGroup dvgInput in lDVGInput)
+            Task<DateValueGroup>[] Tasks = new Task<DateValueGroup>[lDVGInput.Count];
+            lTotalToShow = 100 * Tasks.Length;
+            lTotalShown = 0;
+
+            for (int i = 0; i < lDVGInput.Count; i++)
             {
-                DateValueGroup dvgOutput = Normalizer.Normalize(dtStart, dtEnd,
-                    new TimeSpan(0, 0, 1),
+                Normalizer norm = new Normalizer(new TimeSpan(0, 0, 1));
+                norm.OnePercentStep += norm_OnePercentStep;
 
-                    dvgInput);
+                Task.Run(norm.Normalize(dtStart, dtEnd, lDVGInput[i]));
 
-                lDVGOutput.Add(dvgOutput);
+                Tasks[i] = Task.FromResult(norm.Normalize(dtStart, dtEnd, lDVGInput[i]));
             }
+
+            Task.WaitAll(Tasks);
+
+            for (int i = 0; i < Tasks.Length; i++)
+            {
+                lDVGOutput.Add(Tasks[i].Result);
+            }
+
             #endregion
 
             GenerateOutput(par, lDVGOutput);
+        }
+
+        static void norm_OnePercentStep(object sender)
+        {
+            lTotalShown++;
+            log.InfoFormat("{0:N2}% completed.", ((double)lTotalShown)/((double)lTotalToShow)*100);
         }
 
         public static object ExtractValueFromCell(SharedStringTable sharedStringTable, Cell cell)
@@ -306,15 +329,15 @@ namespace EventTimeNormalizer
             DifferentialFormats differentialFormats1 = new DifferentialFormats() { Count = (UInt32Value)0U };
             TableStyles tableStyles1 = new TableStyles() { Count = (UInt32Value)0U, DefaultTableStyle = "TableStyleMedium2", DefaultPivotStyle = "PivotStyleLight16" };
 
-             wbsp.Stylesheet.Append(numberingFormats1);
-             wbsp.Stylesheet.Append(fonts1);
-             wbsp.Stylesheet.Append(fills1);
-             wbsp.Stylesheet.Append(borders1);
-             wbsp.Stylesheet.Append(cellStyleFormats1);
-             wbsp.Stylesheet.Append(cellFormats1);
-             wbsp.Stylesheet.Append(cellStyles1);
-             wbsp.Stylesheet.Append(differentialFormats1);
-             wbsp.Stylesheet.Append(tableStyles1);
+            wbsp.Stylesheet.Append(numberingFormats1);
+            wbsp.Stylesheet.Append(fonts1);
+            wbsp.Stylesheet.Append(fills1);
+            wbsp.Stylesheet.Append(borders1);
+            wbsp.Stylesheet.Append(cellStyleFormats1);
+            wbsp.Stylesheet.Append(cellFormats1);
+            wbsp.Stylesheet.Append(cellStyles1);
+            wbsp.Stylesheet.Append(differentialFormats1);
+            wbsp.Stylesheet.Append(tableStyles1);
 
             wbsp.Stylesheet.Save();
             #endregion
@@ -367,12 +390,15 @@ namespace EventTimeNormalizer
                 {
                     Row objRow = new Row();
 
-                    objRow.Append(new Cell() { 
-                        StyleIndex = 1, CellValue = new CellValue(lDVGOutput[0].Values[i].Date.ToOADate().ToString()) });
+                    objRow.Append(new Cell()
+                    {
+                        StyleIndex = 1,
+                        CellValue = new CellValue(lDVGOutput[0].Values[i].Date.ToOADate().ToString())
+                    });
 
                     foreach (DateValueGroup dvg in lDVGOutput)
                     {
-                        Cell objCell = new Cell() { DataType=CellValues.Number, CellValue = new CellValue(dvg.Values[i].Value.ToString()) };
+                        Cell objCell = new Cell() { DataType = CellValues.Number, CellValue = new CellValue(dvg.Values[i].Value.ToString()) };
                         objRow.Append(objCell);
                     }
 
