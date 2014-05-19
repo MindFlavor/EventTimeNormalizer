@@ -16,6 +16,7 @@ namespace EventTimeNormalizer
 
         private static long lTotalToShow;
         private static long lTotalShown;
+        private static DateTime dtLastShown;
 
         static void Main(string[] args)
         {
@@ -70,9 +71,11 @@ namespace EventTimeNormalizer
             }
             catch (Exception exce)
             {
-                Console.WriteLine("Cannot access " + par.InputExcelFile + " as an excel file. Exception was: " + exce.Message);
+                log.Error("Cannot access " + par.InputExcelFile + " as an excel file. Exception was: " + exce.Message);
                 return;
             }
+
+            log.Info("Loading data");
 
             WorkbookPart wp = sd.Parts.First(item => item.OpenXmlPart is WorkbookPart).OpenXmlPart as WorkbookPart;
             Sheet sheetToRead = wp.Workbook.Descendants<Sheet>().First();
@@ -109,30 +112,58 @@ namespace EventTimeNormalizer
 
                 DateValuePair dvp = new DateValuePair(iPos++);
 
-                object oDate = ExtractValueFromCell(sharedStringTable, row.ElementAt(par.DataColumn) as Cell);
-                if (oDate is DateTime)
-                    dvp.Date = (DateTime)oDate;
-                else
+                try
                 {
-                    DateTime dtTemp;
-                    if (!DateTime.TryParse(oDate.ToString(), out dtTemp))
-                        dtTemp = DateTime.FromOADate(double.Parse(oDate.ToString()));
+                    object oDate = ExtractValueFromCell(sharedStringTable, row.ElementAt(par.DataColumn) as Cell);
+                    if (oDate is DateTime)
+                        dvp.Date = (DateTime)oDate;
+                    else
+                    {
+                        DateTime dtTemp;
+                        if (!DateTime.TryParse(oDate.ToString(), out dtTemp))
+                            dtTemp = DateTime.FromOADate(double.Parse(oDate.ToString()));
 
-                    dvp.Date = dtTemp;
-                    //dvp.Date = DateTime.Parse(oDate.ToString());
+                        dvp.Date = dtTemp;
+                        //dvp.Date = DateTime.Parse(oDate.ToString());
+                    }
+
+                    object oValue = ExtractValueFromCell(sharedStringTable, row.ElementAt(par.ValueColumn) as Cell);
+                    if (oValue is double)
+                        dvp.Value = (double)oValue;
+                    else
+                        dvp.Value = double.Parse(oValue.ToString());
+
+                    dvg.Add(dvp);
+                }
+                catch (Exception exce)
+                {
+                    log.WarnFormat("Exception in row {0:N}: {1:S}",  row.RowIndex, exce.Message);
+                    //--iPos;
                 }
 
-                object oValue = ExtractValueFromCell(sharedStringTable, row.ElementAt(par.ValueColumn) as Cell);
-                if (oValue is double)
-                    dvp.Value = (double)oValue;
-                else
-                    dvp.Value = double.Parse(oValue.ToString());
-
-                dvg.Add(dvp);
             }
             #endregion
 
+            #region Remove empty groups
+            {
+                List<DateValueGroup> lTemp = new List<DateValueGroup>();
+                foreach (DateValueGroup dvg in lDVGInput)
+                {
+                    if (dvg.Values.Count == 0)
+                        continue;
+
+                    lTemp.Add(dvg);
+                }
+
+                lDVGInput = lTemp;
+            }
+            #endregion
+
+            log.Info("Data load completed");
+
+            log.Info("Sorting groups");
             Parallel.ForEach(lDVGInput, dvg => { dvg.SortDateValues(); });
+            log.Info("Sorting groups completed");
 
             #region Find starting time and end time
             DateTime dtStart = DateTime.MaxValue;
@@ -152,7 +183,13 @@ namespace EventTimeNormalizer
             TimeSpan tsStep = new TimeSpan(0, 0, 1);
 
             long lTotalSteps = (int)((dtEnd - dtStart).TotalMilliseconds / tsStep.TotalMilliseconds);
-            lTotalSteps *= lDVGInput.Count; // for each group
+            log.InfoFormat("Normalization will create {0:N0} steps.", lTotalSteps);
+            if (lTotalSteps > 1048576) // Excel limit
+            {
+                log.ErrorFormat("{0:N0} is above excel limit ({1:N0}). Aborting", lTotalSteps, 1048576);
+                return;
+            }
+            //lTotalSteps *= lDVGInput.Count; // for each group
             #endregion
 
             //double dLastShownPerc = -10.0D;
@@ -164,20 +201,27 @@ namespace EventTimeNormalizer
             List<DateValueGroup> lDVGOutput = new List<DateValueGroup>();
 
             Task<DateValueGroup>[] Tasks = new Task<DateValueGroup>[lDVGInput.Count];
+
             lTotalToShow = 100 * Tasks.Length;
             lTotalShown = 0;
+            dtLastShown = DateTime.MinValue;
 
             for (int i = 0; i < lDVGInput.Count; i++)
             {
                 Normalizer norm = new Normalizer(new TimeSpan(0, 0, 1));
                 norm.OnePercentStep += norm_OnePercentStep;
 
-                Task.Run(norm.Normalize(dtStart, dtEnd, lDVGInput[i]));
+                DateValueGroup dvg = lDVGInput[i];
 
-                Tasks[i] = Task.FromResult(norm.Normalize(dtStart, dtEnd, lDVGInput[i]));
+                Task<DateValueGroup> t = Task.Run(() => { return norm.Normalize(dtStart, dtEnd, dvg); });
+                Tasks[i] = t;
+
+                //Tasks[i] = Task.FromResult(norm.Normalize(dtStart, dtEnd, dvg));
             }
 
             Task.WaitAll(Tasks);
+
+            log.Info("Normalization completed.");
 
             for (int i = 0; i < Tasks.Length; i++)
             {
@@ -191,8 +235,20 @@ namespace EventTimeNormalizer
 
         static void norm_OnePercentStep(object sender)
         {
-            lTotalShown++;
-            log.InfoFormat("{0:N2}% completed.", ((double)lTotalShown)/((double)lTotalToShow)*100);
+            System.Threading.Interlocked.Increment(ref lTotalShown);
+
+            lock (log)
+            {
+                if ((DateTime.Now - dtLastShown).TotalMilliseconds > 100) // every 100 ms
+                {
+                    log.InfoFormat("{0:N2}% completed.", ((double)lTotalShown) / ((double)lTotalToShow) * 100);
+                    dtLastShown = DateTime.Now;
+                }
+                else
+                {
+                    log.DebugFormat("{0:N2}% completed.", ((double)lTotalShown) / ((double)lTotalToShow) * 100);
+                }
+            }
         }
 
         public static object ExtractValueFromCell(SharedStringTable sharedStringTable, Cell cell)
@@ -223,7 +279,7 @@ namespace EventTimeNormalizer
             }
             else
             {
-                Console.WriteLine(cell.CellReference + " - StyleIndex == " + cell.StyleIndex);
+                //Console.WriteLine(cell.CellReference + " - StyleIndex == " + cell.StyleIndex);
                 return cell.InnerText;
             }
 
@@ -232,6 +288,8 @@ namespace EventTimeNormalizer
 
         public static void GenerateOutput(Parameters par, List<DateValueGroup> lDVGOutput)
         {
+            log.Info("Output generation started.");
+
             SpreadsheetDocument objExcelDoc = SpreadsheetDocument.Create(par.OutputExcelFile, DocumentFormat.OpenXml.SpreadsheetDocumentType.Workbook);
             WorkbookPart wbp = objExcelDoc.AddWorkbookPart();
             WorksheetPart wsp = wbp.AddNewPart<WorksheetPart>();
@@ -251,8 +309,10 @@ namespace EventTimeNormalizer
             wbsp.Stylesheet.AddNamespaceDeclaration("x14ac", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac");
 
             NumberingFormats numberingFormats1 = new NumberingFormats() { Count = (UInt32Value)2U };
-            NumberingFormat numberingFormat1 = new NumberingFormat() { NumberFormatId = (UInt32Value)164U, FormatCode = "[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy" };
+            //NumberingFormat numberingFormat1 = new NumberingFormat() { NumberFormatId = (UInt32Value)164U, FormatCode = "[$-F800]dddd\\,\\ mmmm\\ dd\\,\\ yyyy" };
             NumberingFormat numberingFormat2 = new NumberingFormat() { NumberFormatId = (UInt32Value)165U, FormatCode = "[$-F400]h:mm:ss\\ AM/PM" };
+            NumberingFormat numberingFormat1 = new NumberingFormat() { NumberFormatId = (UInt32Value)167U, FormatCode = "m/d/yy\\ h:mm;@" };
+
 
             numberingFormats1.Append(numberingFormat1);
             numberingFormats1.Append(numberingFormat2);
@@ -386,6 +446,10 @@ namespace EventTimeNormalizer
 
             #region Add data
             {
+                dtLastShown = DateTime.MinValue;
+                lTotalShown = 0;
+                lTotalToShow = lDVGOutput[0].Values.Count;
+
                 for (int i = 0; i < lDVGOutput[0].Values.Count; i++)
                 {
                     Row objRow = new Row();
@@ -403,10 +467,24 @@ namespace EventTimeNormalizer
                     }
 
                     sheetData.Append(objRow);
+
+                    #region Progress report
+                    lTotalShown++;
+                    if ((DateTime.Now - dtLastShown).TotalMilliseconds > 1000) // every s
+                    {
+                        log.InfoFormat("{0:N2}% completed.", ((double)lTotalShown) / ((double)lTotalToShow) * 100);
+                        dtLastShown = DateTime.Now;
+                    }
+                    else
+                    {
+                        log.DebugFormat("{0:N2}% completed.", ((double)lTotalShown) / ((double)lTotalToShow) * 100);
+                    }
+                    #endregion
                 }
             }
             #endregion
 
+            log.Info("Appending sheet data");
             workSheet.Append(sheetData);
 
             wsp.Worksheet = workSheet;
@@ -417,12 +495,18 @@ namespace EventTimeNormalizer
             sheet.SheetId = 1;
             sheet.Id = wbp.GetIdOfPart(wsp);
 
+            log.Info("Appending sheet");
             sheets.Append(sheet);
             wb.Append(fv);
             wb.Append(sheets);
 
+            log.Info("Appending Workbook");
             objExcelDoc.WorkbookPart.Workbook = wb;
+
+            log.Info("Saving Workbook");
             objExcelDoc.WorkbookPart.Workbook.Save();
+            
+            log.Info("Closing excel");
             objExcelDoc.Close();
         }
     }
